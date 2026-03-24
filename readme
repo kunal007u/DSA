@@ -1,0 +1,331 @@
+# 🏏 Bat–Ball Contact Detection
+### Cricket Video Analysis Using Computer Vision
+
+**Course:** CSC 481 – Introduction to Image Processing  
+**Term:** 2025–26 Winter Term  
+**Instructor:** Kenny Davila Castellanos  
+**Team:** Ayush Patel & Krunal Kathiriya
+
+---
+
+## 📋 Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [Problem Statement](#problem-statement)
+3. [Image Processing Pipeline](#image-processing-pipeline)
+4. [Requirements](#requirements)
+5. [Installation](#installation)
+6. [How to Run](#how-to-run)
+7. [Parameters & Hyperparameters](#parameters--hyperparameters)
+8. [Dataset](#dataset)
+9. [Evaluation Metrics](#evaluation-metrics)
+10. [Results](#results)
+11. [Known Limitations](#known-limitations)
+12. [File Structure](#file-structure)
+13. [Future Work](#future-work)
+
+---
+
+## Project Overview
+
+This project implements a computer vision system to detect whether a cricket ball made contact with the bat during a delivery. It is designed as an accessible alternative to commercial thermal-imaging systems (e.g., Hot Spot), using only standard video footage and classical image processing techniques.
+
+The system takes a short video clip as input, allows the user to draw a Region of Interest (ROI) around the bat, and produces an annotated output video that labels each frame as **CONTACT** or **NO CONTACT**, with a red motion-highlight overlay on the bat region.
+
+---
+
+## Problem Statement
+
+Cricket umpires often need to determine whether the ball grazed the bat edge — a judgment critical for dismissals (caught behind, LBW reviews, etc.). The current gold standard, **Hot Spot**, relies on expensive thermal cameras ($50,000+ per system) that are not available at most levels of the game. Manual umpire decisions remain error-prone.
+
+This project proposes a cost-effective, purely software-based solution using standard broadcast or recorded video.
+
+---
+
+## Image Processing Pipeline
+
+The detection pipeline consists of five sequential stages:
+
+```
+Video Input
+    │
+    ▼
+1. Frame Extraction
+   └─ Read video at native FPS using OpenCV
+   └─ Store frames as NumPy arrays
+
+    │
+    ▼
+2. Preprocessing
+   └─ Convert to grayscale (cv2.cvtColor)
+   └─ Apply Gaussian blur for noise reduction (cv2.GaussianBlur)
+
+    │
+    ▼
+3. ROI Selection (Bat Region)
+   └─ User draws bounding box on first frame (cv2.selectROI)
+   └─ All further analysis is restricted to this region
+   └─ Reduces false positives from background motion
+
+    │
+    ▼
+4. Frame Differencing + Morphological Filtering
+   └─ Compute absolute difference between consecutive frames (cv2.absdiff)
+   └─ Threshold the difference image (cv2.threshold)
+   └─ Apply morphological opening to remove noise (cv2.morphologyEx)
+   └─ Dilate to strengthen true-positive regions (cv2.dilate)
+
+    │
+    ▼
+5. Contact Decision + Visualization
+   └─ Count non-zero pixels in cleaned difference image
+   └─ Label frame CONTACT if pixel count > min_contact_pixels
+   └─ Overlay red mask on motion region
+   └─ Write annotated frame to output video
+```
+
+### Techniques Used
+
+| Category | Technique | OpenCV Function |
+|----------|-----------|-----------------|
+| Basic | Grayscale conversion | `cv2.cvtColor` |
+| Basic | Gaussian blur | `cv2.GaussianBlur` |
+| Basic | Frame differencing | `cv2.absdiff` |
+| Basic | Binary thresholding | `cv2.threshold` |
+| Intermediate | Morphological opening | `cv2.morphologyEx` |
+| Intermediate | Dilation | `cv2.dilate` |
+| Intermediate | ROI-based analysis | `cv2.selectROI` |
+| Advanced | Contour detection *(pipeline extension)* | `cv2.findContours` |
+| Advanced | Canny edge detection *(pipeline extension)* | `cv2.Canny` |
+
+---
+
+## Requirements
+
+- **Python:** 3.8 or higher
+- **Operating System:** Windows, macOS, or Linux
+
+### Python Libraries
+
+```
+opencv-python >= 4.5.0
+numpy >= 1.21.0
+matplotlib >= 3.4.0
+```
+
+
+---
+
+## Installation
+
+### 1. Clone or unzip the project
+
+```bash
+unzip bat_ball_contact_detection.zip
+cd bat_ball_contact_detection
+```
+
+### 2. (Recommended) Create a virtual environment
+
+```bash
+python -m venv venv
+
+# On Windows:
+venv\Scripts\activate
+
+# On macOS/Linux:
+source venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install opencv-python numpy matplotlib
+```
+
+Or using the requirements file (if provided):
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## How to Run
+
+### Running the main detection script
+
+```bash
+python bat_ball_contact.py
+```
+
+By default, the script is configured with hardcoded input/output paths at the bottom of the file. **Before running, update these paths** to match your system:
+
+```python
+# In bat_ball_contact.py, update the __main__ block:
+input_video  = r"path/to/your/input/video.mp4"
+output_video = r"path/to/your/output/output_contact_result.mp4"
+```
+
+### Step-by-step interaction
+
+1. The script opens the **first frame** of the video in a window titled `Select Bat ROI`.
+2. **Draw a bounding box** around the bat by clicking and dragging.
+3. Press **ENTER** or **SPACE** to confirm the selection.
+4. The script processes every subsequent frame and writes an annotated video to the output path.
+5. When complete, the terminal prints:
+   - The output file location
+   - A list of frame numbers where contact was detected (if any)
+
+### Example terminal output
+
+```
+[INFO] Draw ROI around bat and press ENTER (or SPACE) to confirm.
+[INFO] Saved output video to: output/output_contact_result.mp4
+[INFO] Contact detected at frames: [42, 43, 44, 45]
+Final decision: CONTACT occurred.
+```
+
+### Using the function directly (programmatic usage)
+
+```python
+from bat_ball_contact import detect_bat_ball_contact
+
+contact, frames = detect_bat_ball_contact(
+    video_path="my_clip.mp4",
+    output_path="result.mp4",
+    diff_thresh=35,         # Pixel intensity threshold for frame differencing
+    min_contact_pixels=80,  # Minimum changed pixels to declare contact
+    roi_blur_ksize=5        # Gaussian blur kernel size
+)
+
+print("Contact:", contact)
+print("At frames:", frames)
+```
+
+---
+
+## Parameters & Hyperparameters
+
+The three key hyperparameters control detection sensitivity and should be tuned per dataset:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `diff_thresh` | `35` | Pixel intensity difference threshold. Higher values ignore subtle motion; lower values are more sensitive (and more prone to false positives). Recommended range: **20–60**. |
+| `min_contact_pixels` | `80` | Minimum number of changed pixels within the ROI to declare a contact event. Higher values reduce false positives. Recommended range: **40–200**. |
+| `roi_blur_ksize` | `5` | Gaussian blur kernel size applied before differencing. Must be an **odd integer**. Larger values smooth out more noise but may obscure fine motion. Recommended range: **3–11**. |
+
+### Tuning guidance
+
+- **Too many false positives?** → Increase `diff_thresh` and/or `min_contact_pixels`
+- **Missing real contacts?** → Decrease `diff_thresh` and/or `min_contact_pixels`
+- **Noisy/grainy video?** → Increase `roi_blur_ksize`
+- **High-resolution sharp video?** → Decrease `roi_blur_ksize` (e.g., `3`)
+
+---
+
+## Dataset
+
+The system was developed and evaluated on three categories of clips:
+
+| Source | Type | Notes |
+|--------|------|-------|
+| YouTube | Cricket match highlights | Publicly available; search for "cricket edge caught behind slow motion" |
+| Broadcast footage | Professional matches | HD clips from TV recordings |
+| Custom recordings | Tennis ball + cricket bat | Self-recorded controlled scenarios for ground truth |
+
+**Dataset size:** 20–30 short video clips, each 2–5 seconds long.
+
+> ⚠️ Due to copyright restrictions, broadcast clips are not included in this submission. YouTube clips used for evaluation are publicly accessible. Custom-recorded clips are hosted at:  
+> **[Insert Google Drive / OneDrive link here]**  
+> *(Ensure sharing permissions are set to "Anyone with the link can view")*
+
+### Recommended clip characteristics
+
+- Duration: 2–5 seconds
+- Frame rate: 30–60 FPS
+- Resolution: 720p or higher
+- Camera angle: Side-on or behind-wicket view with bat clearly visible
+
+---
+
+## Evaluation Metrics
+
+The following metrics are used to evaluate system performance:
+
+| Metric | Formula | Description |
+|--------|---------|-------------|
+| **Accuracy** | (TP + TN) / Total | Overall correct predictions |
+| **Precision** | TP / (TP + FP) | Of all declared contacts, how many were real |
+| **Recall** | TP / (TP + FN) | Of all real contacts, how many were detected |
+| **F1 Score** | 2 × (P × R) / (P + R) | Harmonic mean of precision and recall |
+
+Ground truth labels (contact / no contact) were manually annotated for all evaluation clips through frame-by-frame visual inspection.
+
+---
+
+## Results
+
+| Scenario | Accuracy |
+|----------|----------|
+| Controlled / custom recordings | ~85% |
+| Broadcast / YouTube clips | Lower (motion blur, camera movement) |
+
+### Success cases
+- Clear edge contacts in controlled lighting with a stationary camera perform well
+- ROI restriction significantly reduces false triggers from background player movement
+
+### Failure cases
+- Heavy motion blur during fast deliveries
+- Camera panning or zooming causing widespread frame difference
+- Ball too small or partially occluded at moment of contact
+- Manual ROI does not adapt if the bat moves far out of the selected region
+
+---
+
+## Known Limitations
+
+- **Manual ROI:** The bounding box must be drawn by the user on the first frame. If the bat moves significantly, the ROI becomes misaligned.
+- **No ball tracking:** The system does not independently locate the ball; it only analyzes motion within the bat ROI.
+- **Lighting sensitivity:** Large changes in exposure (e.g., floodlights flickering) can trigger false positives.
+- **No audio analysis:** The characteristic "snick" sound of an edge is not used (planned for future work).
+
+---
+
+## File Structure
+
+```
+bat_ball_contact_detection/
+│
+├── bat_ball_contact.py        # Main detection script
+├── README.md                  # This file
+├── requirements.txt           # Python dependencies
+├── self_evaluation.pdf        # Self-evaluation document (separate submission)
+│
+├── data/                      # (Not included — see Dataset section for link)
+│   ├── clips/                 # Input video clips
+│   └── ground_truth/          # Manual contact/no-contact labels
+│
+└── output_video/              # Output annotated videos (auto-created on run)
+    └── output_contact_result.mp4
+```
+
+---
+
+## Future Work
+
+- **Automatic bat detection** using a pre-trained object detector (YOLOv8 or similar) to replace manual ROI
+- **Deep learning classifier** trained on labeled contact/no-contact frame patches
+- **Audio snick detection** using spectral analysis of the bat-ball impact sound
+- **Real-time processing** with GPU acceleration for live match use
+- **Multi-camera fusion** to improve detection confidence
+
+---
+
+## Authors
+
+**Ayush Patel** — [GitHub / Email if desired]  
+**Krunal Kathiriya** — https://github.com/kunal007u
+
+CSC 481: Introduction to Image Processing  
+2025–26 Winter Term
