@@ -12,12 +12,13 @@ let func = (str, index, current, arr = []) => {
 
 result = func("abc", 0, "", [])
 result.sort((a, b) => a.length - b.length)
-console.log(result);
+// console.log(result);
 
 
 // Take it / Leave it Method in Numbers 
 
 let func2 = (nums, index, current=[], arr=[]) => {
+    console.log(current)
     // Base condition 
     if(index === nums.length){
         arr.push(current)
@@ -31,7 +32,7 @@ let func2 = (nums, index, current=[], arr=[]) => {
 }
 
 
-result2 = func2([1,2,3], 0, [], [])
+result2 = func2([2, 3, 5], 0, [], [])
 result2.sort((a, b) => a.length - b.length)
 console.log(result2);
 
