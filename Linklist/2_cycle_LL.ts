@@ -29,12 +29,12 @@ function hasCycle(head: CycleListNode | null): boolean {
 
     while (fast !== null) {
 
+        slow = slow?.next || null
+        fast = fast?.next?.next || null
+
         if (slow === fast) {
             return true
         }
-
-        slow = slow?.next || null
-        fast = fast?.next?.next || null
 
     }
 
