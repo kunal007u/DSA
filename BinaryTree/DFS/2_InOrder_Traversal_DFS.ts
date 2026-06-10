@@ -27,3 +27,29 @@ function inorderTraversal(root: TreeNode | null): number[] {
 
     return arrOut
 };
+
+// using recursive method
+
+const inorderTraversalrecHelper = (node: TreeNode | null, arrOut: Array<number>) => {
+    if (node === null) {
+        return
+    }
+
+    inorderTraversalrecHelper(node.left, arrOut)
+    arrOut.push(node.val)
+    inorderTraversalrecHelper(node.right, arrOut)
+
+
+}
+function inorderTraversalrec(root: TreeNode | null): number[] {
+
+    let arrOut: Array<number> = []
+
+    if (root === null) {
+        return arrOut
+    }
+
+    inorderTraversalrecHelper(root, arrOut)
+    return arrOut
+};
+

@@ -54,6 +54,8 @@ Follow up: Recursive solution is trivial, could you do it iteratively ?
        / \   /
       6   7 9
 */
+
+// Using iterative method
 function preorderTraversal(root: TreeNode | null): number[] {
     // Output - array
     let arrOut: Array<number> = []
@@ -82,6 +84,31 @@ function preorderTraversal(root: TreeNode | null): number[] {
 
     }
 
+
+    return arrOut
+};
+
+// Using recursion method
+let preorderTraversalRecHelper = (node: TreeNode | null, arrOut: Array<number> )=>{
+
+    if(node === null){
+        return 
+    }
+
+    arrOut.push(node.val)
+    preorderTraversalRecHelper(node.left, arrOut );
+    preorderTraversalRecHelper(node.right, arrOut );
+
+}
+function preorderTraversalRec(root: TreeNode | null): number[] {
+    // Output - array
+    let arrOut: Array<number> = []
+
+    if(root === null){
+        return arrOut
+    }
+
+    preorderTraversalRecHelper(root, arrOut)
 
     return arrOut
 };
